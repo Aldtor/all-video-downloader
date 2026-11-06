@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: frameharbor-all-video-downloader-api
+    runtime: docker
+    plan: free
+    region: singapore
+    autoDeployTrigger: off
+    dockerfilePath: ./backend/Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: ALLOWED_ORIGINS
+        value: https://all-video-downloader-orcin.vercel.app,http://localhost:4173,http://127.0.0.1:4173
+      - key: FRAMEHARBOR_MAX_DOWNLOAD_BYTES
+        value: "262144000"

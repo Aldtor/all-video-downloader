@@ -25,7 +25,7 @@
         <div class="sidebar-bottom">
           <div class="engine-card" role="status" aria-live="polite">
             <span class="engine-dot" id="engineDot"></span>
-            <div><strong id="engineLabel">Checking engine</strong><small id="engineDetail">Local connection</small></div>
+            <div><strong id="engineLabel">Checking service</strong><small id="engineDetail">Online API</small></div>
           </div>
           <a class="side-help" href="../website/index.html#setup"><span>?</span> Setup guide</a>
           <div class="sidebar-foot">Your files stay on this device.</div>
@@ -35,13 +35,13 @@
       <main class="main-content" id="new-download">
         <header class="topbar">
           <div class="breadcrumb"><span>Workspace</span><b>/</b><strong>New download</strong></div>
-          <div class="local-badge"><span></span> LOCAL MODE</div>
+          <div class="local-badge"><span></span> ONLINE MODE</div>
         </header>
 
         <aside class="browser-notice" id="browserNotice" role="status" hidden>
           <span class="notice-orb" aria-hidden="true">i</span>
-          <div><strong>Use FrameHarbor on this device</strong><p>Real link inspection and downloads run in the desktop app. This browser page is a preview.</p></div>
-          <a href="../website/index.html#setup">Desktop setup <span aria-hidden="true">↗</span></a>
+            <div><strong>Online download service</strong><p>Public links and media pass through FrameHarbor’s service. Downloads are not kept there. Web limit: 250 MB or 45 minutes.</p></div>
+          <a href="../website/index.html#setup">How it works <span aria-hidden="true">↗</span></a>
         </aside>
 
         <div class="content-wrap">
@@ -69,7 +69,7 @@
               <input id="mediaUrl" type="url" placeholder="Paste a public video link…" autocomplete="url" spellcheck="false" required />
               <button class="button button-primary" id="inspectButton" type="submit">Inspect link <span>→</span></button>
             </form>
-            <div class="source-note"><span class="tiny-check">✓</span> The link is processed on your device using yt-dlp.</div>
+            <div class="source-note"><span class="tiny-check">✓</span> FrameHarbor checks public links and streams the file to your browser.</div>
 
             <div class="media-preview" id="mediaPreview" hidden>
               <div class="preview-art" id="previewArt"><span>FH</span></div>
@@ -112,10 +112,11 @@
             <div class="library-list" id="libraryList" hidden></div>
           </section>
 
-          <footer class="app-footer"><span>FRAMEHARBOR · EARLY BUILD</span><span>Only save media you have permission to download.</span></footer>
+          <footer class="app-footer"><span>FRAMEHARBOR · WEB TOOL</span><span>Only save media you have permission to download.</span></footer>
         </div>
       </main>
     </div>
+    <script src="/website/api-config.js"></script>
     <script src="/website/tool.js"></script>
   </body>
 </html>

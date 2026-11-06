@@ -1,26 +1,24 @@
-const api = window.frameHarbor;
 const $ = (id) => document.getElementById(id);
-const form = $('inspectForm');
-const urlInput = $('mediaUrl');
-const inspectButton = $('inspectButton');
-const message = $('formMessage');
-const preview = $('mediaPreview');
-const options = $('downloadOptions');
-const progressArea = $('progressArea');
-const qualitySelect = $('qualitySelect');
-let currentMedia = null;
-let outputDirectory = '';
-let runningId = null;
-let runningTitle = '';
-let startingDownload = false;
-const earlyProgress = new Map();
-const earlyFinished = new Map();
-let demoMode = !api;
+const apiBase = String(window.FRAMEHARBOR_API_BASE || '').replace(/\/+$/, '');
 const historyKey = 'frameharbor-downloads-v1';
+const fallbackMemoryLimit = 150 * 1024 * 1024;
+let currentMedia = null;
+let saveDirectory = null;
+let activeController = null;
+let preparingDownload = false;
+
+function setInteractionLocked(locked) {
+  $('mediaUrl').disabled = locked;
+  $('inspectButton').disabled = locked;
+  $('clearPreview').disabled = locked;
+  $('qualitySelect').disabled = locked;
+  $('folderButton').disabled = locked;
+  $('downloadButton').disabled = locked;
+}
 
 function setMessage(text, kind = '') {
-  message.textContent = text;
-  message.className = `form-message ${kind}`.trim();
+  $('formMessage').textContent = text;
+  $('formMessage').className = `form-message ${kind}`.trim();
 }
 
 function formatDuration(seconds) {
@@ -30,9 +28,41 @@ function formatDuration(seconds) {
   return `${minutes}:${remainingSeconds}`;
 }
 
-function setEngine(ok, detail) {
-  $('engineDot').classList.toggle('online', ok);
-  $('engineLabel').textContent = ok ? 'Engine ready' : 'Setup needed';
+function safeFilename(title, ext = 'mp4') {
+  const base = String(title || 'FrameHarbor video')
+    .normalize('NFKC')
+    .replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_')
+    .replace(/\s+/g, ' ')
+    .replace(/[. ]+$/g, '')
+    .slice(0, 100) || 'FrameHarbor video';
+  return `${base}.${ext}`;
+}
+
+async function apiRequest(path, options = {}) {
+  if (!apiBase) throw new Error('The web download service has not been configured yet.');
+  let response;
+  try {
+    response = await fetch(`${apiBase}${path}`, {
+      method: options.method || 'GET',
+      headers: options.body ? { 'Content-Type': 'application/json' } : undefined,
+      body: options.body ? JSON.stringify(options.body) : undefined,
+      signal: options.signal,
+    });
+  } catch (error) {
+    if (error?.name === 'AbortError') throw error;
+    throw new Error('The download service is offline or still starting. Please try again shortly.');
+  }
+  if (!response.ok) {
+    let payload = {};
+    try { payload = await response.json(); } catch { /* Use the friendly fallback below. */ }
+    throw new Error(payload.error || 'The download service could not complete this request.');
+  }
+  return response;
+}
+
+function setEngine(online, detail) {
+  $('engineDot').classList.toggle('online', online);
+  $('engineLabel').textContent = online ? 'Service ready' : 'Service unavailable';
   $('engineDetail').textContent = detail;
 }
 
@@ -64,170 +94,239 @@ function loadLibrary() {
   }));
 }
 
-async function checkEngine() {
-  if (!api) {
-    setEngine(false, 'Desktop preview only');
-    $('browserNotice').hidden = false;
-    return;
-  }
+async function checkService() {
+  $('browserNotice').hidden = false;
   try {
-    const result = await api.checkEngine();
-    setEngine(true, `yt-dlp ${result.version}`);
+    const response = await apiRequest('/health');
+    const result = await response.json();
+    setEngine(true, result.service || 'Online service');
   } catch (error) {
-    setEngine(false, 'Install yt-dlp to continue');
-    setMessage(error.message, 'error');
+    setEngine(false, apiBase ? 'Check service status' : 'Service address missing');
+    setMessage(error.message, 'notice');
   }
 }
 
-form.addEventListener('submit', async (event) => {
+function updateQualityChoices() {
+  const available = currentMedia?.formats || {};
+  for (const option of $('qualitySelect').options) {
+    option.disabled = !available[option.value];
+  }
+  if (!available[$('qualitySelect').value]) $('qualitySelect').value = 'best';
+}
+
+$('inspectForm').addEventListener('submit', async (event) => {
   event.preventDefault();
-  const url = urlInput.value.trim();
+  if (activeController || preparingDownload) return;
+  const url = $('mediaUrl').value.trim();
   if (!url) return;
-  inspectButton.disabled = true;
-  inspectButton.innerHTML = 'Checking… <span>↻</span>';
+  $('inspectButton').disabled = true;
+  $('inspectButton').textContent = 'Checking…';
   $('inspectStatus').textContent = 'Reading link details';
+  $('mediaPreview').hidden = true;
+  $('downloadOptions').hidden = true;
   setMessage('');
   try {
-    if (demoMode) {
-      setMessage('Run the desktop app to inspect this link and save media on your device.', 'notice');
-      $('inspectStatus').textContent = 'Desktop app required';
-      return;
-    }
-    currentMedia = await api.inspectUrl(url);
+    const response = await apiRequest('/api/inspect', { method: 'POST', body: { url } });
+    currentMedia = await response.json();
     $('mediaTitle').textContent = currentMedia.title;
     $('mediaMeta').textContent = `${currentMedia.channel} · ${formatDuration(currentMedia.duration)}`;
-    preview.hidden = false;
-    options.hidden = false;
+    $('mediaPreview').hidden = false;
+    $('downloadOptions').hidden = false;
     $('inspectStatus').textContent = 'Link details ready';
-    if (demoMode) setMessage('Preview mode: install and launch the desktop app to inspect real links.', 'notice');
-    urlInput.blur();
+    updateQualityChoices();
+    $('mediaUrl').blur();
   } catch (error) {
     currentMedia = null;
-    preview.hidden = true;
-    options.hidden = true;
     $('inspectStatus').textContent = 'Could not read link';
-    setMessage(error.message || 'Could not inspect this link.', 'error');
+    setMessage(error.message, 'error');
   } finally {
-    inspectButton.disabled = false;
-    inspectButton.innerHTML = 'Inspect link <span>→</span>';
+    $('inspectButton').disabled = false;
+    $('inspectButton').innerHTML = 'Inspect link <span>→</span>';
   }
 });
 
 $('clearPreview').addEventListener('click', () => {
+  if (activeController || preparingDownload) return;
   currentMedia = null;
-  preview.hidden = true;
-  options.hidden = true;
-  urlInput.focus();
+  $('mediaPreview').hidden = true;
+  $('downloadOptions').hidden = true;
+  $('inspectStatus').textContent = 'Ready when you are';
+  $('mediaUrl').focus();
 });
 
 $('folderButton').addEventListener('click', async () => {
-  if (!api) {
-    setMessage('Folder selection is available in the desktop app.', 'notice');
+  if (!window.showDirectoryPicker) {
+    setMessage('Your browser will ask where to save the file when the download starts.', 'notice');
     return;
   }
   try {
-    const folder = await api.chooseFolder();
-    if (folder) {
-      outputDirectory = folder;
-      $('folderName').textContent = folder.split(/[\\/]/).filter(Boolean).at(-1) || folder;
-      $('folderButton').title = folder;
-    }
+    saveDirectory = await window.showDirectoryPicker({ mode: 'readwrite' });
+    $('folderName').textContent = saveDirectory.name || 'Selected folder';
+    $('folderButton').title = saveDirectory.name || 'Selected folder';
+    setMessage('Save folder selected.', 'success');
   } catch (error) {
-    setMessage(error.message || 'Could not open the folder chooser.', 'error');
+    if (error.name !== 'AbortError') setMessage('Could not access that folder. Choose it again.', 'error');
   }
 });
 
-$('downloadButton').addEventListener('click', async () => {
-  if (!currentMedia) return;
-  if (!api) {
-    setMessage('Install the desktop app and yt-dlp to save media.', 'notice');
-    return;
-  }
-  $('downloadButton').disabled = true;
-  progressArea.hidden = false;
-  runningTitle = currentMedia.title;
-  $('progressTitle').textContent = runningTitle;
-  $('progressMessage').textContent = 'Starting download…';
-  $('progressPercent').textContent = '—';
+function showProgress(estimatedBytes, title) {
+  $('progressArea').hidden = false;
+  $('progressTitle').textContent = title;
+  $('progressMessage').textContent = 'Connecting to the source…';
+  $('progressPercent').textContent = Number.isFinite(estimatedBytes) && estimatedBytes > 0 ? '0%' : '—';
   $('progressBar').style.width = '2%';
   $('progressTrack').removeAttribute('aria-valuenow');
-  try {
-    startingDownload = true;
-    const result = await api.startDownload({
-      url: currentMedia.url,
-      quality: qualitySelect.value,
-      outputDirectory,
-    });
-    runningId = result.id;
-    const pendingProgress = earlyProgress.get(runningId);
-    const pendingFinished = earlyFinished.get(runningId);
-    earlyProgress.delete(runningId);
-    earlyFinished.delete(runningId);
-    if (pendingProgress) updateProgress(pendingProgress);
-    if (pendingFinished) finishDownload(pendingFinished);
-  } catch (error) {
-    $('downloadButton').disabled = false;
-    progressArea.hidden = true;
-    setMessage(error.message || 'Could not start the download.', 'error');
-  } finally {
-    startingDownload = false;
-  }
-});
+  $('cancelButton').textContent = 'Cancel';
+}
 
-$('cancelButton').addEventListener('click', async () => {
-  if (!runningId) {
-    progressArea.hidden = true;
-    $('cancelButton').textContent = 'Cancel';
+function updateProgress(bytes, estimatedBytes) {
+  $('progressMessage').textContent = `${(bytes / (1024 * 1024)).toFixed(1)} MB received`;
+  if (Number.isFinite(estimatedBytes) && estimatedBytes > 0) {
+    const percent = Math.min(99, (bytes / estimatedBytes) * 100);
+    $('progressBar').style.width = `${Math.max(2, percent)}%`;
+    $('progressPercent').textContent = `${Math.round(percent)}%`;
+    $('progressTrack').setAttribute('aria-valuenow', String(Math.round(percent)));
+  } else {
+    $('progressBar').style.width = '30%';
+    $('progressBar').classList.add('progress-indeterminate');
+    $('progressPercent').textContent = '…';
+  }
+}
+
+function saveBlob(chunks, filename) {
+  const blob = new Blob(chunks, { type: 'application/octet-stream' });
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = objectUrl;
+  link.download = filename;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), 30000);
+}
+
+async function createNonCollidingFile(directory, filename) {
+  const dot = filename.lastIndexOf('.');
+  const name = dot > 0 ? filename.slice(0, dot) : filename;
+  const extension = dot > 0 ? filename.slice(dot) : '';
+  for (let index = 1; index <= 100; index += 1) {
+    const candidate = index === 1 ? filename : `${name} (${index})${extension}`;
+    try {
+      await directory.getFileHandle(candidate, { create: false });
+    } catch (error) {
+      if (error.name === 'NotFoundError') return directory.getFileHandle(candidate, { create: true });
+      throw error;
+    }
+  }
+  throw new Error('Could not find a free file name in the selected folder.');
+}
+
+$('downloadButton').addEventListener('click', async () => {
+  if (!currentMedia || activeController || preparingDownload) return;
+  const media = currentMedia;
+  const quality = $('qualitySelect').value;
+  const format = media.formats?.[quality];
+  if (!format) {
+    setMessage('That quality is not available for this link.', 'error');
     return;
   }
-  if (runningId && api) await api.cancelDownload(runningId);
-  $('progressMessage').textContent = 'Stopping…';
+
+  const filename = safeFilename(media.title, format.ext || 'mp4');
+  let fileHandle;
+  preparingDownload = true;
+  setInteractionLocked(true);
+  try {
+    if (saveDirectory) fileHandle = await createNonCollidingFile(saveDirectory, filename);
+    else if (window.showSaveFilePicker) fileHandle = await window.showSaveFilePicker({ suggestedName: filename });
+  } catch (error) {
+    if (error.name !== 'AbortError') setMessage('Could not open the save dialog.', 'error');
+    preparingDownload = false;
+    setInteractionLocked(false);
+    return;
+  }
+
+  if (currentMedia !== media) {
+    setMessage('The link changed before saving began. Inspect it again and retry.', 'error');
+    preparingDownload = false;
+    setInteractionLocked(false);
+    return;
+  }
+
+  const controller = new AbortController();
+  activeController = controller;
+  $('progressBar').classList.remove('progress-indeterminate');
+  setMessage('');
+  const estimatedBytes = Number(format.estimatedBytes) || 0;
+  showProgress(estimatedBytes, media.title);
+
+  let writer;
+  const chunks = [];
+  let received = 0;
+  let fallbackLimitReached = false;
+  try {
+    const response = await apiRequest('/api/download', {
+      method: 'POST',
+      body: { url: media.url, quality },
+      signal: controller.signal,
+    });
+    writer = fileHandle ? await fileHandle.createWritable() : null;
+    const reader = response.body?.getReader();
+    if (!reader) throw new Error('This browser cannot receive a streamed download.');
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      received += value.byteLength;
+      if (!writer && received > fallbackMemoryLimit) {
+        fallbackLimitReached = true;
+        throw new Error('This browser cannot safely save a file this large. Use Chrome or the desktop app.');
+      }
+      if (writer) await writer.write(value);
+      else chunks.push(value);
+      updateProgress(received, estimatedBytes);
+    }
+
+    if (writer) await writer.close();
+    else saveBlob(chunks, filename);
+    $('progressBar').classList.remove('progress-indeterminate');
+    $('progressBar').style.width = '100%';
+    $('progressPercent').textContent = 'Done';
+    $('progressTrack').setAttribute('aria-valuenow', '100');
+    $('progressMessage').textContent = 'Saved to your device';
+    $('cancelButton').textContent = 'Close';
+    let items = [];
+    try { items = JSON.parse(localStorage.getItem(historyKey) || '[]'); } catch { items = []; }
+    items.unshift({ title: media.title, meta: `${format.ext.toUpperCase()} · ${new Date().toLocaleDateString()}` });
+    try { localStorage.setItem(historyKey, JSON.stringify(items.slice(0, 20))); } catch { /* Keep this download even if browser storage is full. */ }
+    loadLibrary();
+  } catch (error) {
+    if (!controller.signal.aborted) controller.abort();
+    if (writer) {
+      try { await writer.abort(); } catch { /* The browser may already have closed the partial file. */ }
+    }
+    const userCancelled = controller.signal.aborted && error.name === 'AbortError' && !fallbackLimitReached;
+    $('progressBar').classList.remove('progress-indeterminate');
+    $('progressPercent').textContent = userCancelled ? 'Stopped' : 'Error';
+    $('progressMessage').textContent = userCancelled ? 'Download cancelled.' : error.message;
+    $('cancelButton').textContent = 'Close';
+    if (!userCancelled) setMessage(error.message, 'error');
+  } finally {
+    activeController = null;
+    preparingDownload = false;
+    setInteractionLocked(false);
+  }
 });
 
-if (api) {
-  api.onProgress((event) => {
-    if (event.id !== runningId) {
-      if (startingDownload) earlyProgress.set(event.id, event);
-      return;
-    }
-    updateProgress(event);
-  });
-  api.onFinished((event) => {
-    if (event.id !== runningId) {
-      if (startingDownload) earlyFinished.set(event.id, event);
-      return;
-    }
-    finishDownload(event);
-  });
-}
-
-function updateProgress(event) {
-    $('progressMessage').textContent = event.message || 'Downloading…';
-    if (event.percent !== null) {
-      $('progressBar').style.width = `${Math.max(2, Math.min(100, event.percent))}%`;
-      $('progressPercent').textContent = `${event.percent.toFixed(1)}%`;
-      $('progressTrack').setAttribute('aria-valuenow', String(Math.round(event.percent)));
-    }
-}
-
-function finishDownload(event) {
-    runningId = null;
-    $('downloadButton').disabled = false;
-    $('cancelButton').textContent = 'Close';
-    if (event.ok) {
-      $('progressBar').style.width = '100%';
-      $('progressPercent').textContent = 'Done';
-      $('progressMessage').textContent = `Saved in ${$('folderName').textContent}`;
-      let items = [];
-      try { items = JSON.parse(localStorage.getItem(historyKey) || '[]'); } catch { items = []; }
-      items.unshift({ title: runningTitle || 'Downloaded media', meta: new Date().toLocaleDateString() });
-      try { localStorage.setItem(historyKey, JSON.stringify(items.slice(0, 20))); } catch { /* Keep the completed download even when storage is full. */ }
-      loadLibrary();
-    } else {
-      $('progressMessage').textContent = event.error || 'Download stopped.';
-      $('progressPercent').textContent = 'Stopped';
-    }
-}
+$('cancelButton').addEventListener('click', () => {
+  if (activeController) {
+    activeController.abort();
+    $('progressMessage').textContent = 'Cancelling…';
+  } else {
+    $('progressArea').hidden = true;
+    $('progressBar').classList.remove('progress-indeterminate');
+    $('cancelButton').textContent = 'Cancel';
+  }
+});
 
 loadLibrary();
-checkEngine();
+checkService();
