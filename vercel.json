@@ -1,0 +1,10 @@
+{
+  "rewrites": [
+    { "source": "/", "destination": "/website/index.html" },
+    { "source": "/site.css", "destination": "/website/site.css" },
+    { "source": "/site.js", "destination": "/website/site.js" },
+    { "source": "/desktop", "destination": "/app/index.html" },
+    { "source": "/desktop/", "destination": "/app/index.html" },
+    { "source": "/desktop/(.*)", "destination": "/app/$1" }
+  ]
+}

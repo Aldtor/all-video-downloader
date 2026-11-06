@@ -1,0 +1,14 @@
+{
+  "name": "frameharbor",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A local-first media downloader with a companion website.",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "web": "node server.mjs"
+  },
+  "devDependencies": {
+    "electron": "45.2.3"
+  }
+}

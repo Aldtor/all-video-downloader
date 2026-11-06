@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f5f6f4" />
+    <title>FrameHarbor — Desktop</title>
+    <link rel="stylesheet" href="./app.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <a class="brand" href="../website/index.html" aria-label="FrameHarbor home">
+          <span class="brand-mark"><svg viewBox="0 0 36 36" aria-hidden="true"><path d="M7 7.5h11.5a10 10 0 0 1 10 10V29H17a10 10 0 0 1-10-10z"/><path d="M12 13h7a7 7 0 0 1 7 7v5h-7a7 7 0 0 1-7-7z"/></svg></span>
+          <span><strong>FrameHarbor</strong><small>MEDIA DESK</small></span>
+        </a>
+
+        <div class="side-label">WORKSPACE</div>
+        <nav class="side-nav" aria-label="Main navigation">
+          <a class="nav-link active" href="#new-download"><span class="nav-icon">＋</span><span>New download</span></a>
+          <a class="nav-link" href="#library"><span class="nav-icon">▤</span><span>Library</span><span class="nav-count" id="libraryCount">0</span></a>
+        </nav>
+
+        <div class="sidebar-bottom">
+          <div class="engine-card" role="status" aria-live="polite">
+            <span class="engine-dot" id="engineDot"></span>
+            <div><strong id="engineLabel">Checking engine</strong><small id="engineDetail">Local connection</small></div>
+          </div>
+          <a class="side-help" href="../website/index.html#setup"><span>?</span> Setup guide</a>
+          <div class="sidebar-foot">Your files stay on this device.</div>
+        </div>
+      </aside>
+
+      <main class="main-content" id="new-download">
+        <header class="topbar">
+          <div class="breadcrumb"><span>Workspace</span><b>/</b><strong>New download</strong></div>
+          <div class="local-badge"><span></span> LOCAL MODE</div>
+        </header>
+
+        <div class="content-wrap">
+          <section class="welcome-row">
+            <div>
+              <p class="eyebrow">A QUIETER WAY TO SAVE</p>
+              <h1>Bring a link.<br /><em>Keep the moment.</em></h1>
+              <p class="intro-copy">Paste a public media link to inspect it, choose a quality, and save a copy to your own folder.</p>
+            </div>
+            <div class="hero-stamp" aria-hidden="true">
+              <span class="stamp-sun"></span>
+              <span class="stamp-line line-one"></span>
+              <span class="stamp-line line-two"></span>
+              <span class="stamp-water"></span>
+              <small>MADE FOR<br />YOUR DESK</small>
+            </div>
+          </section>
+
+          <section class="link-card" aria-labelledby="linkHeading">
+            <div class="card-topline"><span class="step-number">01</span><span class="step-label">PASTE A LINK</span><span class="card-status" id="inspectStatus">Ready when you are</span></div>
+            <h2 id="linkHeading">What would you like to save?</h2>
+            <form id="inspectForm" class="link-form">
+              <label class="sr-only" for="mediaUrl">Media URL</label>
+              <span class="link-symbol" aria-hidden="true">↗</span>
+              <input id="mediaUrl" type="url" placeholder="Paste a public video link…" autocomplete="url" spellcheck="false" required />
+              <button class="button button-primary" id="inspectButton" type="submit">Inspect link <span>→</span></button>
+            </form>
+            <div class="source-note"><span class="tiny-check">✓</span> The link is processed on your device using yt-dlp.</div>
+
+            <div class="media-preview" id="mediaPreview" hidden>
+              <div class="preview-art" id="previewArt"><span>FH</span></div>
+              <div class="preview-copy"><span class="preview-kicker">LINK DETAILS</span><h3 id="mediaTitle"></h3><p id="mediaMeta"></p></div>
+              <button class="text-button" type="button" id="clearPreview">Change link</button>
+            </div>
+            <p class="form-message" id="formMessage" role="status" aria-live="polite"></p>
+
+            <div class="download-options" id="downloadOptions" hidden>
+              <div class="option-group">
+                <label for="qualitySelect">Quality</label>
+                <select id="qualitySelect">
+                  <option value="best">Best available</option>
+                  <option value="1080">Up to 1080p</option>
+                  <option value="720">Up to 720p</option>
+                  <option value="480">Up to 480p</option>
+                </select>
+              </div>
+              <div class="option-group save-location">
+                <span class="field-label" id="folderLabel">Save folder</span>
+                <button class="folder-button" type="button" id="folderButton" aria-labelledby="folderLabel folderName"><span class="folder-icon" aria-hidden="true">▱</span><span id="folderName">Downloads</span><b>Change</b></button>
+              </div>
+              <button class="button button-download" type="button" id="downloadButton">Save to device <span>↓</span></button>
+            </div>
+
+            <div class="progress-area" id="progressArea" hidden>
+              <div class="progress-head"><div><span class="preview-kicker">DOWNLOAD</span><strong id="progressTitle">Preparing your file…</strong></div><button class="text-button cancel-button" type="button" id="cancelButton">Cancel</button></div>
+              <div class="progress-track" id="progressTrack" role="progressbar" aria-label="Download progress" aria-valuemin="0" aria-valuemax="100"><span id="progressBar"></span></div>
+              <div class="progress-foot"><span id="progressMessage">Starting…</span><span id="progressPercent">—</span></div>
+            </div>
+          </section>
+
+          <section class="library-section" id="library">
+            <div class="section-heading"><div><p class="eyebrow">ON THIS DEVICE</p><h2>Your library</h2></div><span class="library-total"><b id="libraryTotal">0</b> items</span></div>
+            <div class="empty-library" id="emptyLibrary">
+              <div class="empty-icon"><span></span><span></span><span></span></div>
+              <div><strong>A little room to fill.</strong><p>Completed files will show up here. The originals are saved in your chosen folder.</p></div>
+              <span class="empty-count">LOCAL HISTORY</span>
+            </div>
+            <div class="library-list" id="libraryList" hidden></div>
+          </section>
+
+          <footer class="app-footer"><span>FRAMEHARBOR · EARLY BUILD</span><span>Only save media you have permission to download.</span></footer>
+        </div>
+      </main>
+    </div>
+    <script src="./app.js"></script>
+  </body>
+</html>
