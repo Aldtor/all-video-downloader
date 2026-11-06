@@ -67,6 +67,7 @@ function loadLibrary() {
 async function checkEngine() {
   if (!api) {
     setEngine(false, 'Desktop preview only');
+    $('browserNotice').hidden = false;
     return;
   }
   try {
@@ -88,11 +89,11 @@ form.addEventListener('submit', async (event) => {
   setMessage('');
   try {
     if (demoMode) {
-      await new Promise((resolve) => setTimeout(resolve, 450));
-      currentMedia = { title: 'Desktop preview', channel: 'Connect yt-dlp to inspect a real link', duration: null, url };
-    } else {
-      currentMedia = await api.inspectUrl(url);
+      setMessage('Run the desktop app to inspect this link and save media on your device.', 'notice');
+      $('inspectStatus').textContent = 'Desktop app required';
+      return;
     }
+    currentMedia = await api.inspectUrl(url);
     $('mediaTitle').textContent = currentMedia.title;
     $('mediaMeta').textContent = `${currentMedia.channel} · ${formatDuration(currentMedia.duration)}`;
     preview.hidden = false;

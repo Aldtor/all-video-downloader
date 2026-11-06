@@ -13,11 +13,11 @@ cd "D:\ChatGPT\VIedo down all\FrameHarbor"
 npm run web
 ```
 
-Open `http://127.0.0.1:4173`. The desktop UI preview is at `http://127.0.0.1:4173/desktop/`; its native download actions are available only in the Electron app.
+Open `http://127.0.0.1:4173`. The tool page is at `http://127.0.0.1:4173/tool/`; the desktop UI preview is at `http://127.0.0.1:4173/desktop/`. Real link inspection and downloads are available only in the Electron app.
 
 ## Deploy the website
 
-The repository includes `vercel.json` rewrites for the landing page at `/` and the desktop UI preview at `/desktop/`. Point a Vercel project at the `FrameHarbor` folder and deploy it as a static site. The same files can be hosted by another static host if it supports equivalent route rewrites.
+The repository includes `vercel.json` rewrites for the landing page at `/`, the tool page at `/tool/`, and the desktop UI preview at `/desktop/`. Point a Vercel project at the `FrameHarbor` folder and deploy it as a static site. The same files can be hosted by another static host if it supports equivalent route rewrites.
 
 ## Run the desktop app
 

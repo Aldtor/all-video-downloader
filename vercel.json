@@ -5,6 +5,9 @@
     { "source": "/site.js", "destination": "/website/site.js" },
     { "source": "/desktop", "destination": "/app/index.html" },
     { "source": "/desktop/", "destination": "/app/index.html" },
-    { "source": "/desktop/(.*)", "destination": "/app/$1" }
+    { "source": "/desktop/(.*)", "destination": "/app/$1" },
+    { "source": "/tool", "destination": "/app/index.html" },
+    { "source": "/tool/", "destination": "/app/index.html" },
+    { "source": "/tool/(.*)", "destination": "/app/$1" }
   ]
 }

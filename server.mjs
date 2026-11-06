@@ -21,6 +21,10 @@ const server = http.createServer(async (request, response) => {
       response.writeHead(302, { Location: '/desktop/' }).end();
       return;
     }
+    if (pathname === '/tool') {
+      response.writeHead(302, { Location: '/tool/' }).end();
+      return;
+    }
 
     let relativePath;
     if (pathname === '/' || pathname === '/index.html') {
@@ -29,6 +33,10 @@ const server = http.createServer(async (request, response) => {
       relativePath = 'app/index.html';
     } else if (pathname.startsWith('/desktop/')) {
       relativePath = path.join('app', pathname.slice('/desktop/'.length));
+    } else if (pathname === '/tool/') {
+      relativePath = 'app/index.html';
+    } else if (pathname.startsWith('/tool/')) {
+      relativePath = path.join('app', pathname.slice('/tool/'.length));
     } else if (pathname.startsWith('/website/')) {
       relativePath = path.join('website', pathname.slice('/website/'.length));
     } else {
