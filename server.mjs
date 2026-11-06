@@ -29,14 +29,14 @@ const server = http.createServer(async (request, response) => {
     let relativePath;
     if (pathname === '/' || pathname === '/index.html') {
       relativePath = 'website/index.html';
-    } else if (pathname === '/desktop/') {
-      relativePath = 'app/index.html';
+    } else if (pathname === '/desktop/' || pathname === '/tool/') {
+      relativePath = 'website/tool.html';
     } else if (pathname.startsWith('/desktop/')) {
-      relativePath = path.join('app', pathname.slice('/desktop/'.length));
-    } else if (pathname === '/tool/') {
-      relativePath = 'app/index.html';
+      relativePath = path.join('website', 'tool', pathname.slice('/desktop/'.length));
     } else if (pathname.startsWith('/tool/')) {
-      relativePath = path.join('app', pathname.slice('/tool/'.length));
+      relativePath = path.join('website', 'tool', pathname.slice('/tool/'.length));
+    } else if (pathname === '/website/tool.html') {
+      relativePath = 'website/tool.html';
     } else if (pathname.startsWith('/website/')) {
       relativePath = path.join('website', pathname.slice('/website/'.length));
     } else {
